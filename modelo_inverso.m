@@ -53,6 +53,17 @@ function q = modelo_inverso(robot, T, varargin)
     % Determinación de la posición del punto muñeca
     m = p - d(6)*ta;
     
+    q = zeros(1,6);
+    % Comprobacion alcanzabilidad
+    alc_xy = a(2) + sqrt(d(4)^2 + a(3)^2);
+    alc_z = d(1) + a(2) + a(3) + d(4);
+    
+    if ( sqrt(m(1)^2 + m(2)^2) > alc_xy || m(3) > alc_z ) % salir si fuera de alcance
+        disp("Posicion no alcanzable, devolviendo vector articular nulo");
+        q(:) = 0;
+        return;
+    end
+    
     % Solución para q1
     if (contains(config_1,'espaldas'))
         disp("Configuracion de espaldas no disponible, devolviendo configuración de frente.");
@@ -63,14 +74,14 @@ function q = modelo_inverso(robot, T, varargin)
     if (contains(config_2,'abajo'))
         disp("Configuracion codo abajo no disponible, devolviendo configuración codo arriba.");
     end
-    q2_atan2 = atan2(2*a(2)*d(1) - 2*a(2)*m(3), (2*a(2)*m(1))/cos(q(1)) - 2*a(1)*a(2));
+
+    q2_atan2 = atan2(d(1) - m(3), (m(1))/cos(q(1)) - a(1));
     
     q2_acosnum = a(1)^2+a(2)^2-a(3)^2+d(1)^2-d(4)^2+m(3)^2-2*d(1)*m(3)+m(1)^2/ ...
         cos(q(1))^2-2*a(1)*m(1)/cos(q(1));
     
-    q2_acosden = sqrt( (2*a(2)*m(1)/cos(q(1)) - 2*a(1)*a(2))^2 +(2*a(2)*d(1)- ...
-        2*a(2)*m(3))^2  );
-    
+    q2_acosden = 2*a(2)*sqrt( (m(1)/cos(q(1)) - a(1))^2 +(d(1)- m(3))^2  );
+
     q(2) =  q2_atan2 - acos(q2_acosnum / q2_acosden );
     
     % Solución para q3
@@ -91,24 +102,27 @@ function q = modelo_inverso(robot, T, varargin)
     
     % Tratamiento singularidad muñeca
     if ( abs(q(5)) < eps ) % alineación
-        disp(" Cerca o en singularidad de muñeca, devolviendo una posible solución")
-        SENO5 = eps;
-    else
-        SENO5 = sin(q(5));
-    end
-   
-    % Solución para q4
-    q4num1 = -ta(1)*sin(q(1)) + ta(2)*cos(q(1));
-    q4num2 = -ta(1)*cos(q(2)+q(3))*cos(q(1)) + ta(3)*sin(q(2)+q(3)) - ...
-       ta(2)*cos(q(2)+q(3))*sin(q(1));
-    q(4) = atan2( (q4num1/SENO5), (q4num2/SENO5 ) );
+        disp(" Cerca o en singularidad de muñeca, devolviendo una posible solución.")
+        q4q6 = atan2( tn(1)*sin(q(1)) - tn(2)*cos(q(1)), tn(1)*cos(q(2)+q(3))*...
+                cos(q(1))-tn(3)*sin(q(2)+q(3))+tn(2)*cos(q(2)+q(3))*sin(q(1)) );
+        % de las posibles soluciones, se da una arbitraria
+        q(4) = 0;
+        q(6) = q4q6;
+        
+    else % cálculo normal
+         % Solución para q4
+         q4num1 = -ta(1)*sin(q(1)) + ta(2)*cos(q(1));
+         q4num2 = -ta(1)*cos(q(2)+q(3))*cos(q(1)) + ta(3)*sin(q(2)+q(3)) - ...
+                ta(2)*cos(q(2)+q(3))*sin(q(1));
+         q(4) = atan2( (q4num1/sin(q(5))), (q4num2/sin(q(5)) ) );
     
-    % Solución para q6
-    q6num1 = to(3)*cos(q(2)+q(3))+to(1)*sin(q(2)+q(3))*cos(q(1)) + ...
-        to(2)*sin(q(2)+q(3))*sin(q(1));
-    q6num2 = -tn(3)*cos(q(2)+q(3))-tn(1)*sin(q(2)+q(3))*cos(q(1)) - ...
-        tn(2)*sin(q(2)+q(3))*sin(q(1));
-    q(6) = atan2( (q6num1/SENO5), (q6num2/SENO5));
+        % Solución para q6
+        q6num1 = to(3)*cos(q(2)+q(3))+to(1)*sin(q(2)+q(3))*cos(q(1)) + ...
+                to(2)*sin(q(2)+q(3))*sin(q(1));
+        q6num2 = -tn(3)*cos(q(2)+q(3))-tn(1)*sin(q(2)+q(3))*cos(q(1)) - ...
+                tn(2)*sin(q(2)+q(3))*sin(q(1));
+        q(6) = atan2( (q6num1/sin(q(5))), (q6num2/sin(q(5))));
+    end
     
     % Tratamiento de articulaciones fuera de rango
     for link=1:6
