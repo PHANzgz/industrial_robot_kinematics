@@ -56,7 +56,7 @@ function q = modelo_inverso(robot, T, varargin)
     q = zeros(1,6);
     % Comprobacion alcanzabilidad
     alc_xy = a(2) + sqrt(d(4)^2 + a(3)^2);
-    alc_z = d(1) + a(2) + a(3) + d(4);
+    alc_z = d(1) + a(2) + sqrt(d(4)^2 + a(3)^2);
     
     if ( sqrt(m(1)^2 + m(2)^2) > alc_xy || m(3) > alc_z ) % salir si fuera de alcance
         disp("Posicion no alcanzable, devolviendo vector articular nulo");
